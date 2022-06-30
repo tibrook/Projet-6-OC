@@ -1,6 +1,5 @@
 const express = require("express");
 const mongoose = require("mongoose");
-//const { createTypeReferenceDirectiveResolutionCache } = require("typescript");
 const User = require("./models/user");
 //const Thing = require('./models/thing');
 const app = express();
