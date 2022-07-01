@@ -1,14 +1,10 @@
 const express = require("express");
 const mongoose = require("mongoose");
-<<<<<<< HEAD
 const bodyParser = require("body-parser");
 const userRoutes = require("./routes/user");
+const stuffRoutes = require("./routes/stuff");
+const path = require("path");
 
-=======
-const User = require("./models/user");
-//const Thing = require('./models/thing');
-const app = express();
->>>>>>> f80a7f7ea162db063664546b5f80f5562fab758f
 mongoose
   .connect(
     "mongodb+srv://guillou:0508@ocp6.euv7huo.mongodb.net/?retryWrites=true&w=majority",
@@ -36,4 +32,6 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json());
 app.use("/api/auth", userRoutes);
+app.use("/api/sauces", stuffRoutes);
+app.use("/images", express.static(path.join(__dirname, "images")));
 module.exports = app;
