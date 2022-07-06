@@ -17,6 +17,7 @@ const app = express();
 
 app.use(express.json());
 
+/* avoid Cross Origin Ressource Sharing errors & let  frontend and backend communicate*/
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
@@ -31,6 +32,7 @@ app.use((req, res, next) => {
 });
 
 app.use(bodyParser.json());
+//indique a express qu'il faut gérer la ressource image de manière statique à chaque fois qu'on recoit une requête vers images/
 app.use("/images", express.static(path.join(__dirname, "images")));
 app.use("/api/auth", userRoutes);
 app.use("/api/sauces", stuffRoutes);
