@@ -2,12 +2,15 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const userRoutes = require("./routes/user");
-const stuffRoutes = require("./routes/stuff");
+const sauceRoutes = require("./routes/sauce");
+require("dotenv").config();
+
+
 const path = require("path");
 
 mongoose
   .connect(
-    "mongodb+srv://guillou:0508@ocp6.euv7huo.mongodb.net/?retryWrites=true&w=majority",
+    `mongodb+srv://${process.env.user}:${process.env.password}@ocp6.euv7huo.mongodb.net/?retryWrites=true&w=majority`,
     { useNewUrlParser: true, useUnifiedTopology: true }
   )
   .then(() => console.log("Connexion à MongoDB réussie !"))
@@ -35,6 +38,6 @@ app.use(bodyParser.json());
 //indique a express qu'il faut gérer la ressource image de manière statique à chaque fois qu'on recoit une requête vers images/
 app.use("/images", express.static(path.join(__dirname, "images")));
 app.use("/api/auth", userRoutes);
-app.use("/api/sauces", stuffRoutes);
+app.use("/api/sauces", sauceRoutes);
 
 module.exports = app;
