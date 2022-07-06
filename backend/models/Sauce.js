@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+/* Utilisation de la methode schema de mongoose */
 const sauceSchema = mongoose.Schema({
   userId: { type: String, required: true },
   name: { type: String, required: true },
