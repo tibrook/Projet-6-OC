@@ -3,31 +3,52 @@ const fs = require("fs");
 
 /* Create Sauce  */
 exports.createSauce = (req, res, next) => {
-  // le type doit être en Fform-data et non en JSON
-  const sauceObject = JSON.parse(req.body.sauce);
-
-  delete sauceObject._id;
-  //On remplacera le userID en bdd avec le middleware d'authentification
-  delete sauceObject._userId;
-  const sauce = new Sauce({
-    ...sauceObject,
-    userId: req.auth.userId,
-    imageUrl: `${req.protocol}://${req.get("host")}/images/${
-      req.file.filename
-    }`,
-    likes: 0,
-    dislikes: 0,
-    usersLiked: [],
-    usersDisliked: [],
-  });
-  sauce
-    .save()
-    .then(() => {
-      res.status(201).json({ message: "Objet enregistré !" });
-    })
-    .catch((error) => {
-      res.status(400).json({ error });
+  if (!req.body.sauce || !req.file) {
+    res.status(400).json({ error: "Format des données incorrect" });
+    return;
+  }
+  // Verification des données envoyées
+  if (fieldChecker(req)) {
+    // le type doit être en form-data et non en JSON
+    const sauceObject = JSON.parse(req.body.sauce);
+    delete sauceObject._id;
+    //On remplacera le userID en bdd avec le middleware d'authentification
+    delete sauceObject._userId;
+    /* Vérification du fichier joint */
+    if (!req.file || !extChecker(req)) {
+      res.status(400).json({ error: "Mauvaise extension" });
+      return;
+    }
+    /* Verification du heat */
+    if (!heatChecker(sauceObject.heat)) {
+      res
+        .status(400)
+        .json({ error: "Le heat doit être compris entre 1 et 10" });
+      return;
+    }
+    /* Création de notre objet Sauce */
+    const sauce = new Sauce({
+      ...sauceObject,
+      userId: req.auth.userId,
+      imageUrl: `${req.protocol}://${req.get("host")}/images/${req.file.filename
+        }`,
+      likes: 0,
+      dislikes: 0,
+      usersLiked: [],
+      usersDisliked: [],
     });
+
+    sauce
+      .save()
+      .then(() => {
+        res.status(201).json({ message: "Objet enregistré !" });
+      })
+      .catch((error) => {
+        res.status(400).json({ error });
+      });
+  } else {
+    res.status(400).json({ error });
+  }
 };
 
 /* Find One Sauce */
@@ -45,39 +66,64 @@ exports.getOneSauce = (req, res, next) => {
     });
 };
 
-/* Modify Sauce */
 exports.modifySauce = (req, res, next) => {
-  /* On verifie si req.file existe */
+  /* On vérifie qu'il y ait bien des données envoyées  */
+  if (
+    (req.file && !req.body.sauce) ||
+    (!req.file && req.body.sauce) ||
+    (!req.file && !req.body)
+  ) {
+    res.status(400).json({ error: "Format des données non valide" });
+    return;
+  }
+
   const sauceObject = req.file
     ? /* Si oui, on traite la nouvelle image */
-      {
-        ...JSON.parse(req.body.sauce),
-        imageUrl: `${req.protocol}://${req.get("host")}/images/${
-          req.file.filename
+    {
+      ...JSON.parse(req.body.sauce),
+      imageUrl: `${req.protocol}://${req.get("host")}/images/${req.file.filename
         }`,
-      }
+    }
     : /* Si non, on traite l'objet entrant */
-      { ...req.body };
-  /* On supprime le userID envoyé par le client afin d'éviter de le changer */
+    { ...req.body };
   delete sauceObject._userId;
 
-  Sauce.findOne({ _id: req.params.id })
-    .then((sauce) => {
-      /* Puis on vérifie que le requérant est bien propriétaire de l'objet */
-      if (sauce.userId != req.auth.userId) {
-        res.status(403).json({ message: "unauthorized request" });
-      } else {
-        Sauce.updateOne(
-          { _id: req.params.id },
-          { ...sauceObject, _id: req.params.id }
-        )
-          .then(() => res.status(200).json({ message: "Objet modifié!" }))
-          .catch((error) => res.status(401).json({ error }));
-      }
-    })
-    .catch((error) => {
-      res.status(400).json({ error });
-    });
+  /* On verifie qu'il n'y ait pas de caractères spéciaux  */
+  if (!fieldChecker(req)) {
+    res.status(400).json({ error: "Format des données non valide" });
+    return;
+  } else {
+    /* Verifiation de l'extension du fichier s'il y en a un  */
+    if (req.file && !extChecker(req)) {
+      res.status(400).json({ error: "extension non valide" });
+      return;
+    }
+    /* Verification du heat */
+    if (!heatChecker(sauceObject.heat)) {
+      res
+        .status(400)
+        .json({ error: "Le heat doit être compris entre 1 et 10" });
+      return;
+    }
+    /* Modification de la sauce */
+    Sauce.findOne({ _id: req.params.id })
+      .then((sauce) => {
+        /* Puis on vérifie que le requérant est bien propriétaire de l'objet */
+        if (sauce.userId != req.auth.userId) {
+          res.status(403).json({ error: "unauthorized request" });
+        } else {
+          Sauce.updateOne(
+            { _id: req.params.id },
+            { ...sauceObject, _id: req.params.id }
+          )
+            .then(() => res.status(200).json({ message: "Objet modifié!" }))
+            .catch((error) => res.status(401).json({ error }));
+        }
+      })
+      .catch((error) => {
+        res.status(400).json({ error });
+      });
+  }
 };
 
 /* Delete Sauce */
@@ -85,7 +131,7 @@ exports.deleteSauce = (req, res, next) => {
   Sauce.findOne({ _id: req.params.id })
     .then((sauce) => {
       if (sauce.userId != req.auth.userId) {
-        res.status(401).json({ message: "Not authorized" });
+        res.status(401).json({ error: "Not authorized" });
       } else {
         const filename = sauce.imageUrl.split("/images/")[1];
         fs.unlink(`images/${filename}`, () => {
@@ -115,53 +161,50 @@ exports.getAllSauces = (req, res, next) => {
     });
 };
 
-/* AddLike */
+/* AddLike /Dislike */
 exports.addLike = (req, res, next) => {
-  //console.log(req.body.like);
-
   Sauce.findOne({ _id: req.params.id })
-
     .then((sauce) => {
-      console.log(sauce.usersLiked);
-      console.log(sauce.usersDisliked);
-      const userFoundLike = sauce.usersLiked.find((user) => req.auth.userId);
-      const userFoundDislike = sauce.usersDisliked.find(
-        (user) => req.auth.userId
+      /* On vérifie si l'utilisateur a déjà like/dislike la sauce*/
+      const userFoundLike = sauce.usersLiked.find(
+        (user) => user == req.auth.userId
       );
-
-      if (req.body.like == 1) {
+      const userFoundDislike = sauce.usersDisliked.find(
+        (user) => user == req.auth.userId
+      );
+      /* S'il like */
+      if (req.body.like === 1) {
         if (userFoundLike) {
         } else if (userFoundDislike) {
-          sauce.dislikes--;
-          sauce = supprUserlikeArray(sauce, req.auth.userId, "usersDisliked");
-          sauce.likes++;
-          sauce.usersLiked += req.auth.userId;
+          supprArrayLike(sauce, req.auth.userId, "usersDisliked");
+          sauce.usersLiked.push(req.auth.userId);
         } else {
-          sauce.likes++;
-          sauce.usersLiked += req.auth.userId;
+          sauce.usersLiked.push(req.auth.userId);
         }
-      } else if (req.body.like == 0) {
+        /* S'il unlike */
+      } else if (req.body.like === 0) {
         if (userFoundLike) {
-          sauce.likes--;
-
-          supprUserlikeArray(sauce, req.auth.userId, "usersLiked");
-          console.log(sauce);
-        } else {
-          sauce.dislikes--;
-          supprUserlikeArray(sauce, req.auth.userId, "usersDisliked");
-        }
-      } else if (req.body.like == -1) {
-        if (userFoundLike) {
-          sauce.likes--;
-          sauce = supprUserlikeArray(sauce, req.auth.userId, "usersLiked");
-          sauce.dislikes++;
-          sauce.usersLiked += req.auth.userId;
+          supprArrayLike(sauce, req.auth.userId, "usersLiked");
         } else if (userFoundDislike) {
-        } else {
-          sauce.dislikes++;
-          sauce.usersLiked += req.auth.userId;
+          supprArrayLike(sauce, req.auth.userId, "usersDisliked");
         }
+        /* S'il dislike */
+      } else if (req.body.like === -1) {
+        if (userFoundDislike) {
+        } else if (userFoundLike) {
+          supprArrayLike(sauce, req.auth.userId, "usersLiked");
+          sauce.usersDisliked.push(req.auth.userId);
+        } else {
+          sauce.usersDisliked.push(req.auth.userId);
+        }
+      } else {
+        res.status(400).json({
+          error: "Mauvais format",
+        });
+        return;
       }
+      sauce.likes = sauce.usersLiked.length;
+      sauce.dislikes = sauce.usersDisliked.length;
 
       Sauce.updateOne({ _id: req.params.id }, sauce)
         .then(() => {
@@ -178,18 +221,68 @@ exports.addLike = (req, res, next) => {
     .catch((error) => res.status(401).json({ error }));
 };
 
-const supprUserlikeArray = (sauce, userId, tableUser) => {
+/* Suppression d'un userID des tableaux likes/dislikes */
+const supprArrayLike = (sauce, idUser, tableLikeDislike) => {
   let arrayLength;
-  if (tableUser == "usersLiked") {
+  if (tableLikeDislike == "usersLiked") {
     arrayLength = sauce.usersLiked.length;
   } else {
     arrayLength = sauce.usersDisliked.length;
   }
+  /* On peut aussi utiliser findIndex() */
   for (let i = 0; i < arrayLength; i++) {
-    if (sauce.usersLiked[i] === userId) {
-      sauce.splice(i, 1);
-
-      return sauce;
+    if (tableLikeDislike == "usersLiked") {
+      if (sauce.usersLiked[i] == idUser) {
+        sauce.usersLiked.splice(i, 1);
+      }
+    } else {
+      if (sauce.usersDisliked[i] == idUser) {
+        sauce.usersDisliked.splice(i, 1);
+      }
     }
+  }
+};
+
+// On vérifie qu'il n'y ait pas de caractères spéciaux
+const fieldChecker = (req) => {
+  let sauceFields;
+  if (req.body.sauce) {
+    sauceFields = JSON.parse(req.body.sauce);
+  } else {
+    sauceFields = req.body;
+  }
+  if (
+    !sauceFields.manufacturer.match(/^[a-zA-Z-éÉèç ]*$/) ||
+    !sauceFields.name.match(/^[a-zA-Z-éÉèç ]*$/) ||
+    !sauceFields.description.match(/^[a-zA-Z-éÉèç ]*$/) ||
+    !sauceFields.mainPepper.match(/^[a-zA-Z-éÉèç ]*$/)
+  ) {
+    return null;
+  } else {
+    return 1;
+  }
+};
+
+// Le heat doit être compris entre 1 et 10
+const heatChecker = (heat) => {
+  if (heat < 0 || heat > 10 || Number.isInteger(heat) != true) {
+    return null;
+  } else {
+    return 1;
+  }
+};
+
+// Vérification de l'extension du fichier.
+const extChecker = (image) => {
+  if (image.file.length == 0) {
+    return null;
+  }
+  const ext = image.file.originalname.substring(
+    image.file.originalname.lastIndexOf(".") + 1
+  );
+  if (ext != "jpg" && ext != "jpeg" && ext != "png") {
+    return null;
+  } else {
+    return 1;
   }
 };

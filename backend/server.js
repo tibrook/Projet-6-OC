@@ -1,6 +1,11 @@
+const fs = require("fs");
 const http = require("http");
 const app = require("./app");
-
+/* const options = {
+  key: fs.readFileSync("key.pem"),
+  cert: fs.readFileSync("cert.pem"),
+}; */
+/* return valid port */
 const normalizePort = (val) => {
   const port = parseInt(val, 10);
 
@@ -12,13 +17,19 @@ const normalizePort = (val) => {
   }
   return false;
 };
+/* saving env var or port 3000 */
 const port = normalizePort(process.env.PORT || "3000");
+
+/* Adding port to express app */
 app.set("port", port);
 
+/* Research &  manages errors*/
 const errorHandler = (error) => {
   if (error.syscall !== "listen") {
+    /* Lève une exception */
     throw error;
   }
+  /* Méthode de https */
   const address = server.address();
   const bind =
     typeof address === "string" ? "pipe " + address : "port: " + port;
@@ -35,14 +46,18 @@ const errorHandler = (error) => {
       throw error;
   }
 };
-
+/* Create server */
 const server = http.createServer(app);
 
+/* Launch server */
 server.on("error", errorHandler);
+
+/* listen adress:port */
 server.on("listening", () => {
   const address = server.address();
+
   const bind = typeof address === "string" ? "pipe " + address : "port " + port;
   console.log("Listening on " + bind);
 });
-
+/* start the https server listening for connections */
 server.listen(port);
