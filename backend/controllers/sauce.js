@@ -3,6 +3,11 @@ const fs = require("fs");
 
 /* Create Sauce  */
 exports.createSauce = (req, res, next) => {
+  if (!req.body.sauce || !req.file) {
+    res.status(400).json({ error: "Format des données incorrect" });
+    return;
+  }
+  // Verification des données envoyées
   if (fieldChecker(req)) {
     // le type doit être en form-data et non en JSON
     const sauceObject = JSON.parse(req.body.sauce);
@@ -25,9 +30,8 @@ exports.createSauce = (req, res, next) => {
     const sauce = new Sauce({
       ...sauceObject,
       userId: req.auth.userId,
-      imageUrl: `${req.protocol}://${req.get("host")}/images/${
-        req.file.filename
-      }`,
+      imageUrl: `${req.protocol}://${req.get("host")}/images/${req.file.filename
+        }`,
       likes: 0,
       dislikes: 0,
       usersLiked: [],
@@ -63,17 +67,27 @@ exports.getOneSauce = (req, res, next) => {
 };
 
 exports.modifySauce = (req, res, next) => {
+  /* On vérifie qu'il y ait bien des données envoyées  */
+  if (
+    (req.file && !req.body.sauce) ||
+    (!req.file && req.body.sauce) ||
+    (!req.file && !req.body)
+  ) {
+    res.status(400).json({ error: "Format des données non valide" });
+    return;
+  }
+
   const sauceObject = req.file
     ? /* Si oui, on traite la nouvelle image */
-      {
-        ...JSON.parse(req.body.sauce),
-        imageUrl: `${req.protocol}://${req.get("host")}/images/${
-          req.file.filename
+    {
+      ...JSON.parse(req.body.sauce),
+      imageUrl: `${req.protocol}://${req.get("host")}/images/${req.file.filename
         }`,
-      }
+    }
     : /* Si non, on traite l'objet entrant */
-      { ...req.body };
+    { ...req.body };
   delete sauceObject._userId;
+
   /* On verifie qu'il n'y ait pas de caractères spéciaux  */
   if (!fieldChecker(req)) {
     res.status(400).json({ error: "Format des données non valide" });
@@ -136,6 +150,7 @@ exports.deleteSauce = (req, res, next) => {
 
 /* Get all Sauces */
 exports.getAllSauces = (req, res, next) => {
+
   Sauce.find()
     .then((sauces) => {
       res.status(200).json(sauces);
@@ -231,17 +246,17 @@ const supprArrayLike = (sauce, idUser, tableLikeDislike) => {
 
 // On vérifie qu'il n'y ait pas de caractères spéciaux
 const fieldChecker = (req) => {
-  let sauceObject;
+  let sauceFields;
   if (req.body.sauce) {
-    sauceObject = JSON.parse(req.body.sauce);
+    sauceFields = JSON.parse(req.body.sauce);
   } else {
-    sauceObject = req.body;
+    sauceFields = req.body;
   }
   if (
-    !sauceObject.manufacturer.match(/^[a-zA-Z-éÉèç ]*$/) ||
-    !sauceObject.name.match(/^[a-zA-Z-éÉèç ]*$/) ||
-    !sauceObject.description.match(/^[a-zA-Z-éÉèç ]*$/) ||
-    !sauceObject.mainPepper.match(/^[a-zA-Z-éÉèç ]*$/)
+    !sauceFields.manufacturer.match(/^[a-zA-Z-éÉèç ]*$/) ||
+    !sauceFields.name.match(/^[a-zA-Z-éÉèç ]*$/) ||
+    !sauceFields.description.match(/^[a-zA-Z-éÉèç ]*$/) ||
+    !sauceFields.mainPepper.match(/^[a-zA-Z-éÉèç ]*$/)
   ) {
     return null;
   } else {

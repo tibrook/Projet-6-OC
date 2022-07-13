@@ -1,7 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
+require("dotenv").config();
 /* Création de compte */
 exports.signup = (req, res, next) => {
   if (
@@ -41,7 +41,7 @@ exports.login = (req, res, next) => {
           }
           res.status(200).json({
             userId: user._id,
-            token: jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+            token: jwt.sign({ userId: user._id }, process.env.secret_token, {
               //Méthode de jwt permettant de chiffrer un nouveau token qui contient l'ID user
               expiresIn: "24h", //Chiffré avec la chaine passée en paramètre
             }),
@@ -57,7 +57,7 @@ const checkEmail = (email) => {
     console.log("Le mail doit faire au moins 7 caractères");
     return null;
   } else if (!email.match(/^[\w_/.-]+@[\w-]+\.[a-z]{2,4}$/i)) {
-    console.log("ne correspond pas a la regex");
+    console.log("Mauvais format");
     return null;
   } else {
     return email;

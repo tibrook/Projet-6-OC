@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const userRoutes = require("./routes/user");
 const sauceRoutes = require("./routes/sauce");
+const helmet = require("helmet");
 require("dotenv").config();
 
 
@@ -10,7 +11,7 @@ const path = require("path");
 
 mongoose
   .connect(
-    `mongodb+srv://${process.env.user}:${process.env.password}@ocp6.euv7huo.mongodb.net/?retryWrites=true&w=majority`,
+    process.env.secret_db,
     { useNewUrlParser: true, useUnifiedTopology: true }
   )
   .then(() => console.log("Connexion à MongoDB réussie !"))
@@ -19,7 +20,7 @@ mongoose
 const app = express();
 
 app.use(express.json());
-
+//
 /* avoid Cross Origin Ressource Sharing errors & let  frontend and backend communicate*/
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -35,9 +36,10 @@ app.use((req, res, next) => {
 });
 
 app.use(bodyParser.json());
+
 //indique a express qu'il faut gérer la ressource image de manière statique à chaque fois qu'on recoit une requête vers images/
 app.use("/images", express.static(path.join(__dirname, "images")));
 app.use("/api/auth", userRoutes);
 app.use("/api/sauces", sauceRoutes);
-
+app.use(helmet());
 module.exports = app;
