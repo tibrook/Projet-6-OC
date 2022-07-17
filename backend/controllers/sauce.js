@@ -47,7 +47,9 @@ exports.createSauce = (req, res, next) => {
         res.status(400).json({ error });
       });
   } else {
-    res.status(400).json({ error });
+    supprImage(req)
+    res.status(400).json({ error: "Format des données incorrect" });
+    return
   }
 };
 
@@ -57,7 +59,13 @@ exports.getOneSauce = (req, res, next) => {
     _id: req.params.id,
   })
     .then((sauce) => {
-      res.status(200).json(sauce);
+      if (!sauce) {
+        res.status(403).json({
+          error: "id non valide",
+        });
+      } else {
+        res.status(200).json(sauce);
+      }
     })
     .catch((error) => {
       res.status(404).json({
@@ -86,16 +94,18 @@ exports.modifySauce = (req, res, next) => {
     }
     : /* Si non, on traite l'objet entrant */
     { ...req.body };
-  delete sauceObject._userId;
+  delete sauceObject.userId;
 
   /* On verifie qu'il n'y ait pas de caractères spéciaux  */
   if (!fieldChecker(req)) {
     res.status(400).json({ error: "Format des données non valide" });
+    supprImage(req)
     return;
   } else {
     /* Verifiation de l'extension du fichier s'il y en a un  */
     if (req.file && !extChecker(req)) {
       res.status(400).json({ error: "extension non valide" });
+      supprImage(req)
       return;
     }
     /* Verification du heat */
@@ -103,11 +113,17 @@ exports.modifySauce = (req, res, next) => {
       res
         .status(400)
         .json({ error: "Le heat doit être compris entre 1 et 10" });
+      supprImage(req)
       return;
     }
     /* Modification de la sauce */
     Sauce.findOne({ _id: req.params.id })
       .then((sauce) => {
+        if (!sauce) {
+          res.status(400).json({ error: "ID non valide" });
+          supprImage(req)
+          return
+        }
         /* Puis on vérifie que le requérant est bien propriétaire de l'objet */
         if (sauce.userId != req.auth.userId) {
           res.status(403).json({ error: "unauthorized request" });
@@ -116,7 +132,12 @@ exports.modifySauce = (req, res, next) => {
             { _id: req.params.id },
             { ...sauceObject, _id: req.params.id }
           )
-            .then(() => res.status(200).json({ message: "Objet modifié!" }))
+            .then(() => {
+              /* Si une image est jointe, on supprime l'ancienne image */
+              //    fs.unlink(sauce.imageUrl, (error) => { console.log(error); })
+              supprImage(sauce)
+              res.status(200).json({ message: "Objet modifié!" })
+            })
             .catch((error) => res.status(401).json({ error }));
         }
       })
@@ -137,20 +158,20 @@ exports.deleteSauce = (req, res, next) => {
         fs.unlink(`images/${filename}`, () => {
           Sauce.deleteOne({ _id: req.params.id })
             .then(() => {
-              res.status(200).json({ message: "Objet supprimé !" });
+              res.status(204).json();
             })
             .catch((error) => res.status(401).json({ error }));
         });
       }
     })
     .catch((error) => {
-      res.status(500).json({ error });
+      res.status(400).json({ error: "id non valide" });
     });
 };
 
 /* Get all Sauces */
 exports.getAllSauces = (req, res, next) => {
-
+  console.log(req.auth);
   Sauce.find()
     .then((sauces) => {
       res.status(200).json(sauces);
@@ -166,6 +187,18 @@ exports.getAllSauces = (req, res, next) => {
 exports.addLike = (req, res, next) => {
   Sauce.findOne({ _id: req.params.id })
     .then((sauce) => {
+      if (!sauce) {
+        res.status(403).json({
+          error: "id non valide",
+        });
+        return
+      }
+      if (req.body.userId != req.auth.userId) {
+        res.status(401).json({
+          error: "Unauthorize request",
+        });
+        return
+      }
       /* On vérifie si l'utilisateur a déjà like/dislike la sauce*/
       const userFoundLike = sauce.usersLiked.find(
         (user) => user == req.auth.userId
@@ -253,6 +286,10 @@ const fieldChecker = (req) => {
     sauceFields = req.body;
   }
   if (
+    sauceFields.name.trim() == "" ||
+    sauceFields.manufacturer.trim() == "" ||
+    sauceFields.description.trim() == "" ||
+    sauceFields.mainPepper.trim() == "" ||
     !sauceFields.manufacturer.match(/^[a-zA-Z-éÉèç ]*$/) ||
     !sauceFields.name.match(/^[a-zA-Z-éÉèç ]*$/) ||
     !sauceFields.description.match(/^[a-zA-Z-éÉèç ]*$/) ||
@@ -287,3 +324,27 @@ const extChecker = (image) => {
     return 1;
   }
 };
+
+const supprImage = (req) => {
+
+  if (req.file) {
+    // Dans le cas d'une image déjà déjà transformée par multer, on récupère directement le nom
+    const filename = req.file.filename.split("/images/")[1] || req.file.filename;
+    fs.unlink(`images/${filename}`, (error) => {
+      if (error) {
+        return null;
+      }
+    })
+    //Dans le cas d'une modification d'image, on supprimer l'ancienne image (sauce.imageUrl)
+  } else if (req.imageUrl) {
+    const filename = req.imageUrl.split("/images/")[1];
+    console.log(req.imageUrl);
+    fs.unlink(`images/${filename}`, (error) => {
+      if (error) {
+        return null;
+      }
+    })
+  } else {
+    return null;
+  }
+}

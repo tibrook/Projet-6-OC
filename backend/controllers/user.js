@@ -1,13 +1,18 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
+module.exports.limiter = require('../middleware/rateLimiter');
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 /* Création de compte */
 exports.signup = (req, res, next) => {
   if (
-    checkEmail(req.body.email) != null &&
-    checkMdp(req.body.password) != null
-  ) {
+    checkEmail(req.body.email) == null) {
+    res.status(400).json({ message: "L'email doit être du format suivant : toto@gmail.com" });
+
+  } else if (checkMdp(req.body.password) == null) {
+    res.status(400).json({ message: "Le mot de passe doit contenir au moins 8 caractères, dont au moins 1 chiffre, 1 lettre majuscule et un caractère spécial" });
+  } else {
+
     bcrypt
       .hash(req.body.password, 10)
       .then((hash) => {
@@ -21,8 +26,6 @@ exports.signup = (req, res, next) => {
           .catch((error) => res.status(400).json({ error }));
       })
       .catch((error) => res.status(500).json({ error }));
-  } else {
-    res.status(500).json({ message: "email ou mdp au mauvais format" });
   }
 };
 
@@ -31,13 +34,13 @@ exports.login = (req, res, next) => {
   User.findOne({ email: req.body.email })
     .then((user) => {
       if (!user) {
-        return res.status(401).json({ error: "Utilisateur non trouvé !" });
+        return res.status(401).json({ error: "Données incorrectes" });
       }
       bcrypt
         .compare(req.body.password, user.password)
         .then((valid) => {
           if (!valid) {
-            return res.status(401).json({ error: "Mot de passe incorrect !" });
+            return res.status(401).json({ error: "Données incorrectes" });
           }
           res.status(200).json({
             userId: user._id,
