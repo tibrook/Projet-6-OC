@@ -16,13 +16,13 @@ exports.createSauce = (req, res, next) => {
     delete sauceObject._userId;
     /* Vérification du fichier joint */
     if (!req.file || !extChecker(req)) {
-      res.status(400).json({ error: "Mauvaise extension" });
+      res.status(422).json({ error: "Mauvaise extension" });
       return;
     }
     /* Verification du heat */
     if (!heatChecker(sauceObject.heat)) {
       res
-        .status(400)
+        .status(422)
         .json({ error: "Le heat doit être compris entre 1 et 10" });
       return;
     }
@@ -44,11 +44,11 @@ exports.createSauce = (req, res, next) => {
         res.status(201).json({ message: "Objet enregistré !" });
       })
       .catch((error) => {
-        res.status(400).json({ error });
+        res.status(500).json({ error });
       });
   } else {
     supprImage(req)
-    res.status(400).json({ error: "Format des données incorrect" });
+    res.status(422).json({ error: "Les caractères spéciaux ne sont pas acceptés." });
     return
   }
 };
@@ -60,7 +60,7 @@ exports.getOneSauce = (req, res, next) => {
   })
     .then((sauce) => {
       if (!sauce) {
-        res.status(403).json({
+        res.status(404).json({
           error: "id non valide",
         });
       } else {
@@ -73,7 +73,7 @@ exports.getOneSauce = (req, res, next) => {
       });
     });
 };
-
+/* Modification sauce */
 exports.modifySauce = (req, res, next) => {
   /* On vérifie qu'il y ait bien des données envoyées  */
   if (
@@ -324,7 +324,7 @@ const extChecker = (image) => {
     return 1;
   }
 };
-
+/* Suppression d'une image en cas de modification / erreur  */
 const supprImage = (req) => {
 
   if (req.file) {
