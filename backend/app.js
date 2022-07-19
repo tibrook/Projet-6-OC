@@ -36,11 +36,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(bodyParser.json());
-
 //indique a express qu'il faut gérer la ressource image de manière statique à chaque fois qu'on recoit une requête vers images/
 app.use("/images", express.static(path.join(__dirname, "images")));
 app.use("/api/auth", userRoutes);
 app.use("/api/sauces", sauceRoutes);
 app.use(helmet());
+app.use((req, res, next) => {
+  res.status(404).json({ error: "Endpoint not found" });
+});
 module.exports = app;

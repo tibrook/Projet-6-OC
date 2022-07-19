@@ -3,16 +3,18 @@ const bcrypt = require("bcrypt");
 module.exports.limiter = require('../middleware/rateLimiter');
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+
 /* Création de compte */
 exports.signup = (req, res, next) => {
+  /* Vérification format  email */
   if (
     checkEmail(req.body.email) == null) {
-    res.status(400).json({ message: "L'email doit être du format suivant : toto@gmail.com" });
-
+    res.status(400).json({ error: "L'email doit être du format suivant : toto@gmail.com" });
+    /* Verification format mdp  */
   } else if (checkMdp(req.body.password) == null) {
-    res.status(400).json({ message: "Le mot de passe doit contenir au moins 8 caractères, dont au moins 1 chiffre, 1 lettre majuscule et un caractère spécial" });
+    res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères, dont au moins 1 chiffre, 1 lettre majuscule et un caractère spécial" });
   } else {
-
+    /* chiffrement et salage du mdp suur 10 tours */
     bcrypt
       .hash(req.body.password, 10)
       .then((hash) => {
@@ -20,6 +22,7 @@ exports.signup = (req, res, next) => {
           email: req.body.email,
           password: hash,
         });
+        /* Sauvegarde du user dans la bdd  */
         user
           .save()
           .then(() => res.status(201).json({ message: "Utilisateur créé !" }))
@@ -33,9 +36,11 @@ exports.signup = (req, res, next) => {
 exports.login = (req, res, next) => {
   User.findOne({ email: req.body.email })
     .then((user) => {
+      /* Verification email */
       if (!user) {
         return res.status(401).json({ error: "Données incorrectes" });
       }
+      /* Vérification du mot de passe en comparant le mot de passe envoyé par l'utilisateur  & le mdp du user */
       bcrypt
         .compare(req.body.password, user.password)
         .then((valid) => {
@@ -54,7 +59,7 @@ exports.login = (req, res, next) => {
     })
     .catch((error) => res.status(500).json({ error }));
 };
-
+/* Vérification format email */
 const checkEmail = (email) => {
   if (email.length > 0 && (email.length < 7 || email.trim() == "")) {
     console.log("Le mail doit faire au moins 7 caractères");
@@ -66,6 +71,7 @@ const checkEmail = (email) => {
     return email;
   }
 };
+/* Vérification format mot de passe  */
 const checkMdp = (mdp) => {
   if (
     // (?=.*[a-z]) = at least 1 lowercase character
