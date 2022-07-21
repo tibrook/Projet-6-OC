@@ -17,6 +17,7 @@ exports.createSauce = (req, res, next) => {
     /* Vérification du fichier joint */
     if (!req.file || !extChecker(req)) {
       res.status(422).json({ error: "Mauvaise extension" });
+      supprImage(req)
       return;
     }
     /* Verification du heat */
@@ -24,6 +25,7 @@ exports.createSauce = (req, res, next) => {
       res
         .status(422)
         .json({ error: "Le heat doit être compris entre 1 et 10" });
+      supprImage(req)
       return;
     }
     /* Création de notre objet Sauce */
@@ -75,6 +77,7 @@ exports.getOneSauce = (req, res, next) => {
 };
 /* Modification sauce */
 exports.modifySauce = (req, res, next) => {
+
   /* On vérifie qu'il y ait bien des données envoyées  */
   if (
     (req.file && !req.body.sauce) ||
@@ -98,7 +101,7 @@ exports.modifySauce = (req, res, next) => {
 
   /* On verifie qu'il n'y ait pas de caractères spéciaux  */
   if (!fieldChecker(req)) {
-    res.status(400).json({ error: "Format des données non valide" });
+    res.status(400).json({ error: "Format des données non valide. Caractères spéciaux non autorisés" });
     supprImage(req)
     return;
   } else {
@@ -135,7 +138,10 @@ exports.modifySauce = (req, res, next) => {
             .then(() => {
               /* Si une image est jointe, on supprime l'ancienne image */
               //    fs.unlink(sauce.imageUrl, (error) => { console.log(error); })
-              supprImage(sauce)
+              if (req.file) {
+                supprImage(sauce)
+              }
+
               res.status(200).json({ message: "Objet modifié!" })
             })
             .catch((error) => res.status(401).json({ error }));
@@ -292,7 +298,7 @@ const fieldChecker = (req) => {
     sauceFields.mainPepper.trim() == "" ||
     !sauceFields.manufacturer.match(/^[a-zA-Z-éÉèç ]*$/) ||
     !sauceFields.name.match(/^[a-zA-Z-éÉèç ]*$/) ||
-    !sauceFields.description.match(/^[a-zA-Z-éÉèç ]*$/) ||
+    !sauceFields.description.match(/^[a-zA-Z1-9-éÉèç ]*$/) ||
     !sauceFields.mainPepper.match(/^[a-zA-Z-éÉèç ]*$/)
   ) {
     return null;
@@ -326,7 +332,6 @@ const extChecker = (image) => {
 };
 /* Suppression d'une image en cas de modification / erreur  */
 const supprImage = (req) => {
-
   if (req.file) {
     // Dans le cas d'une image déjà déjà transformée par multer, on récupère directement le nom
     const filename = req.file.filename.split("/images/")[1] || req.file.filename;

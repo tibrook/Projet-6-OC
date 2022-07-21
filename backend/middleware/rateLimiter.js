@@ -2,8 +2,8 @@ const limitter = require("express-rate-limit");
 
 const registerLimitter = limitter({
     windowsMs: 1 * 60 * 1000,
-    max: 2,
-    message: "t'as trop essayé fréro"
+    max: 3,
+    message: "Trop de tentatives"
 })
 const loginLimitter = limitter({
     windowMs: 1 * 60 * 1000,
