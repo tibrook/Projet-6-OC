@@ -1,6 +1,5 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-module.exports.limiter = require('../middleware/rateLimiter');
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -12,6 +11,7 @@ exports.signup = (req, res, next) => {
     res.status(400).json({ error: "L'email doit être du format suivant : toto@gmail.com" });
     /* Verification format mdp  */
   } else if (checkMdp(req.body.password) == null) {
+    console.log("yes");
     res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères, dont au moins 1 chiffre, 1 lettre majuscule et un caractère spécial" });
   } else {
     /* chiffrement et salage du mdp suur 10 tours */
@@ -22,6 +22,7 @@ exports.signup = (req, res, next) => {
           email: req.body.email,
           password: hash,
         });
+
         /* Sauvegarde du user dans la bdd  */
         user
           .save()
