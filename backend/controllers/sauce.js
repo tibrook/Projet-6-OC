@@ -13,7 +13,8 @@ exports.createSauce = (req, res, next) => {
     const sauceObject = JSON.parse(req.body.sauce);
     delete sauceObject._id;
     //On remplacera le userID en bdd avec le middleware d'authentification
-    delete sauceObject._userId;
+    delete sauceObject.userId;
+
     /* Vérification du fichier joint */
     if (!req.file || !extChecker(req)) {
       res.status(422).json({ error: "Mauvaise extension" });
@@ -248,7 +249,7 @@ exports.addLike = (req, res, next) => {
 
       Sauce.updateOne({ _id: req.params.id }, sauce)
         .then(() => {
-          res.status(201).json({
+          res.status(200).json({
             message: "Sauce updated successfully!",
           });
         })
